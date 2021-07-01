@@ -148,8 +148,8 @@ class folderHandler:
             for name in temp:
                 paths.append(self._files["path"][self._files["name"].index(name)])
             
-            sort[group] = paths
-  
+            sort[group.strip()] = paths
+        
         self._groups = sort  
   
     def normtime(self, file):

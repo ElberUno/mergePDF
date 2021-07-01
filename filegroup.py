@@ -61,8 +61,6 @@ def filegroup(inplist):
             
         convert.append((root, os.path.commonprefix(grouped[root])))
     
-    print(convert)
-    
     complete = {}
     for pair in convert:
         old = pair[0]
