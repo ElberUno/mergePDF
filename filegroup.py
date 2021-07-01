@@ -5,6 +5,8 @@ Created on Thu Jul  1 13:14:05 2021
 @author: Louis Beal
 """
 
+import os
+
 import numpy as np
 
 def filegroup(inplist):
@@ -54,21 +56,21 @@ def filegroup(inplist):
                 break
             
     #update singletons to full root
-    marked = []
+    convert = []
     for root in grouped:
-        
-        if len(grouped[root]) == 1:
             
-            marked.append((root, grouped[root][0]))
+        convert.append((root, os.path.commonprefix(grouped[root])))
     
-    for pair in marked:
-        key = pair[0]
-        val = pair[1]
-        
-        del grouped[key]
-        grouped[val] = [val]
+    print(convert)
     
-    return(grouped)
+    complete = {}
+    for pair in convert:
+        old = pair[0]
+        new = pair[1]
+    
+        complete[new] = grouped[old]
+    
+    return(complete)
 
 if __name__ == "__main__":
     
@@ -79,8 +81,10 @@ if __name__ == "__main__":
                 "test 2",
                 "blag",
                 "longtest",
-                "testlong"]
+                "testlong",
+                "big boy test 1",
+                "big boy test 2"]
     
     groups = filegroup(testlist)
     
-    print(groups)
+    # print(groups)
