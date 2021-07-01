@@ -6,19 +6,25 @@ Created on Wed Jun 30 15:39:36 2021
 """
 
 import os
+import re
 import glob
+import operator
+
+import pandas as pd
 
 from fpdf import FPDF
 
+from filegroup import filegroup
+
 class merge(FPDF):
     
-    def load_images(self,folder):
+    def create(self, folder, name, files):
         
-        print("scanning in path")
-        print(folder)
+        self.path = folder
+        self.name = name
         
-        self.files = glob.glob(folder + "*.jpeg")
-    
+        self.files = files
+        
         self.append_image()
     
     def append_image(self):
@@ -27,8 +33,14 @@ class merge(FPDF):
             self.add_page()
             self.image(img,x=0,y=0,w=self.w,h=self.h)
     
-    def save(self, path, name = "merged"):
-        self.output(path + name + ".pdf")
+    def save(self):
+        outpath = self.path + self.name + ".pdf"
+        
+        print(f"\nsaving merged pdf at {outpath}")
+        print("files contained:")
+        for file in self.files:
+            print(f"\t{file}")
+        self.output(outpath)
 
 class folderHandler:
     
@@ -38,13 +50,28 @@ class folderHandler:
         
         self._files = {}
         
+        self._groups = False
+        
         self.scan()
         self.identify()
         self.distinguish()
+        self.sort()
 
     @property
     def folder(self):
         return(self._folder)
+    
+    @property
+    def groups(self):
+        
+        if not self._groups:
+            
+            self.scan()
+            self.identify()
+            self.distinguish()
+            self.sort()
+            
+        return(self._groups)
     
     def stripname(self, name):
     
@@ -87,18 +114,57 @@ class folderHandler:
         self._files["crt"] = create
         
     def distinguish(self):
+        
+        #call the file grouper
+        
         names = self._files["name"]
         
-        maxlen = max([len(x) for x in names])
+        groups = filegroup(names)
         
-        print(names)
+        self._groups = groups
         
-        for i in range(maxlen):
-            this = [x.ljust(maxlen, " ")[i] for x in names]
-            uniq = list(set(this))
+    def sort(self):
+        
+        #sort files into order
+        # first, try sort by numbers in the names, then by file dates
+        groups = self._groups
+        
+        sort = {}
+        for group in groups:
+            files = groups[group]
             
-            print(i, this)
+            temp = []
+            for file in files:
+                nums = sum([int(x) for x in re.findall(r'-?\d+\.?\d*', file)])
+                date = self.normtime(file)
+                
+                temp.append((file,nums,date))
+                
+            # sort by detected nums and then if not, create/modify date
+            temp = [x[0] for x in sorted(temp, key = operator.itemgetter(1, 2))]
+            
+            #convert names back to paths
+            paths = []
+            for name in temp:
+                paths.append(self._files["path"][self._files["name"].index(name)])
+            
+            sort[group] = paths
+  
+        self._groups = sort  
+  
+    def normtime(self, file):
         
+        # return a value taking both create and modify times into account
+        # sum should do the trick for now
+        
+        idx = self._files["name"].index(file)
+        
+        crt = self._files["crt"][idx]
+        mod = self._files["mod"][idx]
+        
+        # print(f"norm time for {file}, {crt + mod}")
+        
+        return(crt + mod)
         
     
 if __name__ == "__main__":
@@ -107,4 +173,13 @@ if __name__ == "__main__":
     
     test = folderHandler(folder)
     
-    # print(test._files)
+    groupings = test.groups
+    
+    for group in groupings:
+        
+        paths = groupings[group]
+        
+        temp = merge()
+        
+        temp.create(folder, group, paths)
+        temp.save()
