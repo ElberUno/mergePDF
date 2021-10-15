@@ -14,6 +14,8 @@ import pandas as pd
 
 from fpdf import FPDF
 
+from PIL import Image
+
 from filegroup import filegroup
 
 class merge(FPDF):
@@ -25,13 +27,47 @@ class merge(FPDF):
         
         self.files = files
         
+        # pixel size for images
+        
+        self._dpi = 160
+        
         self.append_image()
     
     def append_image(self):
         
+        temp_imgs = []
+        idx = 0
         for img in self.files:
             self.add_page()
-            self.image(img,x=0,y=0,w=self.w,h=self.h)
+            
+            ftype = img.split('.')[-1]
+            
+            image_PIL = Image.open(img)
+            
+            imgsize = image_PIL.size
+            
+            dpi200 = (1700**2 + 2338**2)**0.5 # diagonal size for 200dpi img
+            dpi = (imgsize[0]**2 + imgsize[1]**2)**0.5 # diagonal size of this img
+            
+            dpi_scale = dpi200 / dpi
+            
+            scale = (self._dpi / 200) * dpi_scale
+            
+            newsize = [int(round(x*scale)) for x in imgsize]
+            image_PIL = image_PIL.resize(newsize, Image.BILINEAR)
+            
+            tempname = f'temp_{idx}.{ftype}'
+            
+            image_PIL.save(tempname)
+            temp_imgs.append(tempname)
+            
+            self.image(tempname,x=0,y=0,w=self.w,h=self.h)
+            
+            idx += 1
+            
+        #it's all one file without this being separate for some reason
+        for img in temp_imgs:
+            os.remove('./' + img)
     
     def save(self):
         outpath = self.path + self.name + ".pdf"
